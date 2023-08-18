@@ -1665,16 +1665,21 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 					0 :
 					__GFP_HIGHMEM;
 
-	nr_pages = get_vm_area_size(area) >> PAGE_SHIFT;
-	array_size = (nr_pages * sizeof(struct page *));
+	nr_pages = get_vm_area_size(area) >> PAGE_SHIFT;//获取获取vm_struct vm 区域的pages 个数
+	array_size = (nr_pages * sizeof(struct page *));//虚拟空间大小
 
 	area->nr_pages = nr_pages;
 	/* Please note that the recursion is strictly bounded. */
-	if (array_size > PAGE_SIZE) {
+	if (array_size > PAGE_SIZE) {//array_size > 1<<12 虚拟空间大小   小于 1<<12 4k
+//use this function __vmalloc_node_range 分配连续的虚拟内存()
+// __vmalloc_node_range  -  allocate virtually contiguous memory
+//连续分配虚拟空间   页面级别的分配
 		pages = __vmalloc_node(array_size, 1, nested_gfp|highmem_mask,
 				PAGE_KERNEL, node, area->caller);
 	} else {
-		pages = kmalloc_node(array_size, nested_gfp, node);
+    // array_size <= 1<<12  虚拟空间大于 4k 
+		//return __kmalloc_node(size, flags, node);
+  	pages = kmalloc_node(array_size, nested_gfp, node);
 	}
 	area->pages = pages;
 	if (!area->pages) {
@@ -1682,11 +1687,12 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 		kfree(area);
 		return NULL;
 	}
-
+//分配 area->nr_pages 个  area->nr_pages =  page get_vm_area_size(area) >> PAGE_SHIFT
 	for (i = 0; i < area->nr_pages; i++) {
 		struct page *page;
 
 		if (node == NUMA_NO_NODE)
+		//未使用 NUMA 开始分配页面 
 			page = alloc_page(alloc_mask|highmem_mask);
 		else
 			page = alloc_pages_node(node, alloc_mask|highmem_mask, 0);
@@ -1701,14 +1707,20 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 			cond_resched();
 	}
 
-	if (map_vm_area(area, prot, pages))
+// 映射  VM 区域 建立虚拟地址映射
+	// ret = vmap_page_range_noflush(start, end, prot, pages);
+	// flush_cache_vmap(start, end);
+	//会使用flush_cache_vmap 冲洗cache
+
+	if (map_vm_area(area, prot, pages)) 
 		goto fail;
+//返回这段虚拟地址 区域的地址
 	return area->addr;
 
 fail:
 	warn_alloc(gfp_mask, NULL,
 			  "vmalloc: allocation failure, allocated %ld of %ld bytes",
-			  (area->nr_pages*PAGE_SIZE), area->size);
+			  (area->nr_pages*PAGE_SIZE), area->size);//PAGE_SIZE = 4k
 	vfree(area->addr);
 	return NULL;
 }
