@@ -188,7 +188,7 @@ static struct vm_area_struct *remove_vma(struct vm_area_struct *vma)
 
 static int do_brk_flags(unsigned long addr, unsigned long request, unsigned long flags,
 		struct list_head *uf);
-SYSCALL_DEFINE1(brk, unsigned long, brk)
+SYSCALL_DEFINE1(brk, unsigned long, brk)//__do_sys_brk()
 {
 	unsigned long retval;
 	unsigned long newbrk, oldbrk, origbrk;
@@ -198,7 +198,7 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
 	bool populate;
 	bool downgraded = false;
 	LIST_HEAD(uf);
-
+//申请写者类型的信号量mm->mmap_sem)
 	if (down_write_killable(&mm->mmap_sem))
 		return -EINTR;
 
